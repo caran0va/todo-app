@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// funky function for centering text because i was bored
 func centerPaddedString(str string, padRune rune, width int) string {
 
 	var halfwidth int
@@ -20,7 +21,7 @@ func centerPaddedString(str string, padRune rune, width int) string {
 		if width < len(line) {
 			width = len(line)
 		}
-		halfwidth = int(math.Ceil(float64(width/2)-float64(len(line)/2))) + 2 // the two is jsut to make minimum spacing
+		halfwidth = int(math.Ceil(float64(width/2)-float64(len(line)/2))) + 2 // the two is just to make minimum spacing
 
 		tempString := ""
 		for {

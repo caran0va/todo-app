@@ -10,8 +10,9 @@ func (t Task) format() string {
 }
 
 // Create new taskList
-func newTaskList(owner string) *TaskList {
+func newTaskList(title, owner string) *TaskList {
 	var tl TaskList
+	tl.title = title
 	tl.owner = owner
 	return &tl
 }
