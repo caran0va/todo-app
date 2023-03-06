@@ -35,6 +35,7 @@ type TaskList struct {
 func main() {
 	greeting()
 	taskBook = append(taskBook, *newTaskList("Caras First Todo List", "Cara"))
+	taskBook = append(taskBook, *newTaskList("Kaycees Hella Todo List", "Kaycee"))
 	//time.Sleep(2 * time.Second)
 	taskBook[0].newTask("New Task #2", "This is something I should also do when I have time. Or rather, I should make time to do this lol")
 
@@ -59,10 +60,14 @@ func mainMenu() {
 
 	var selectedItem string = ""
 	var selectedIdx int = -1
+	var selector string = "  "
 menuloop:
 	for {
+		command = ""
+		arg = ""
+		arg2 = -1
 		fmt.Printf("\nPlease type a command> ")
-		fmt.Scanf("%s %s %d", &command, &arg, &arg2)
+		fmt.Scanf("%s %s %d\n", &command, &arg, &arg2)
 		//fmt.Printf("%v %v\n", command, arg)
 
 		//fmt.Println(arg)
@@ -72,16 +77,22 @@ menuloop:
 		case strings.EqualFold(command, "list"):
 			switch {
 			case strings.EqualFold(arg, "tasklist"):
-				fmt.Printf("%-20v %-40v %-20v %v", "\nTask List ###:", "Title:", "Owner:", "# of Tasks:\n")
+				fmt.Printf("%-20v %-40v %-20v %v", "\n  Task List ###:", "Title:", "Owner:", "# of Tasks:\n\n")
 				for i, tl := range taskBook {
-					fmt.Printf("%-20s %-40v %-20v %v\n\n", "Tasklist "+strconv.Itoa(i), tl.title, tl.owner, len(tl.tasks))
+					if selectedItem == "Task List" && selectedIdx == i {
+						selector = "* "
+					} else {
+						selector = "  "
+					}
+					fmt.Printf("%-20v%-40v %-20v %v\n", selector+"Tasklist "+strconv.Itoa(i), tl.title, tl.owner, len(tl.tasks))
+					selector = "  "
 				}
 			case strings.EqualFold(arg, "task"):
 			}
 		case strings.EqualFold(command, "select"):
 			switch {
 			case strings.EqualFold(arg, "tasklist"):
-				selectedItem = "tasklist"
+				selectedItem = "Task List"
 				if arg2 >= 0 {
 					selectedIdx = arg2
 					fmt.Printf("Task List %d is the selected %s\n", selectedIdx, selectedItem)
@@ -91,10 +102,11 @@ menuloop:
 
 		case strings.EqualFold(command, "exit"):
 			break menuloop
+		case strings.EqualFold(command, "selected"):
+			if selectedIdx >= 0 && selectedItem != "" {
+				fmt.Printf("%s %d is currently selected\n", selectedItem, selectedIdx)
+			}
 		}
-		command = ""
-		arg = ""
-		arg2 = -1
 	}
 
 }
