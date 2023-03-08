@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -54,29 +56,46 @@ func greeting() {
 }
 
 func mainMenu() {
-	var command string
-	var arg string
-	var arg2 int
-
+	var command []string
+	//var command[1] string
+	//var command[1]2 int
+	scanner := bufio.NewScanner(os.Stdin)
 	var selectedItem string = ""
 	var selectedIdx int = -1
 	var selector string = "  "
+	var err error
 menuloop:
 	for {
-		command = ""
-		arg = ""
-		arg2 = -1
+		// reset input fields
+		for i, _ := range command {
+			command[i] = ""
+		}
+
 		fmt.Printf("\nPlease type a command> ")
-		fmt.Scanf("%s %s %d\n", &command, &arg, &arg2)
-		//fmt.Printf("%v %v\n", command, arg)
+		scanner.Scan()
+		//TODO: add zero length commnd handling
+		command = strings.Fields(scanner.Text())
 
-		//fmt.Println(arg)
 		switch {
-		case strings.EqualFold(command, "help"):
+		case strings.EqualFold(command[0], "help"):
 
-		case strings.EqualFold(command, "list"):
+		case strings.EqualFold(command[0], "create"):
 			switch {
-			case strings.EqualFold(arg, "tasklist"):
+			case strings.EqualFold(command[1], "task") && selectedItem == "Task List" && selectedIdx != -1:
+				fmt.Printf("Task Name: ")
+				scanner.Scan()
+				taskName := scanner.Text()
+				fmt.Printf("Task Description: ")
+				scanner.Scan()
+				taskDescription := scanner.Text()
+				taskBook[selectedIdx].newTask(taskName, taskDescription)
+				fmt.Printf("Task %s Created", taskName)
+
+			}
+
+		case strings.EqualFold(command[0], "list"):
+			switch {
+			case strings.EqualFold(command[1], "tasklist"):
 				fmt.Printf("%-20v %-40v %-20v %v", "\n  Task List ###:", "Title:", "Owner:", "# of Tasks:\n\n")
 				for i, tl := range taskBook {
 					if selectedItem == "Task List" && selectedIdx == i {
@@ -87,24 +106,32 @@ menuloop:
 					fmt.Printf("%-20v%-40v %-20v %v\n", selector+"Tasklist "+strconv.Itoa(i), tl.title, tl.owner, len(tl.tasks))
 					selector = "  "
 				}
-			case strings.EqualFold(arg, "task"):
+			case strings.EqualFold(command[1], "task"):
+				fmt.Printf("%-20v %-40v %v", "\n  Task ###:", "Title:", "Description:\n\n\n")
+				for i, task := range taskBook[selectedIdx].tasks {
+					fmt.Printf("%-20v%-40v %-20v\n\n", selector+"Task "+strconv.Itoa(i), task.title, task.descripion)
+				}
+
 			}
-		case strings.EqualFold(command, "select"):
+		case strings.EqualFold(command[0], "select"):
 			switch {
-			case strings.EqualFold(arg, "tasklist"):
+			case strings.EqualFold(command[1], "tasklist"):
 				selectedItem = "Task List"
-				if arg2 >= 0 {
-					selectedIdx = arg2
+				if selectedIdx, err = strconv.Atoi(command[2]); selectedIdx >= 0 {
 					fmt.Printf("Task List %d is the selected %s\n", selectedIdx, selectedItem)
+				} else {
+					fmt.Printf("Error occured: %v", err)
 				}
 			}
-		case strings.EqualFold(command, "delete"):
+		case strings.EqualFold(command[0], "delete"):
 
-		case strings.EqualFold(command, "exit"):
+		case strings.EqualFold(command[0], "exit"):
 			break menuloop
-		case strings.EqualFold(command, "selected"):
+		case strings.EqualFold(command[0], "selected"):
 			if selectedIdx >= 0 && selectedItem != "" {
 				fmt.Printf("%s %d is currently selected\n", selectedItem, selectedIdx)
+			} else {
+				fmt.Printf("Nothing is selected.")
 			}
 		}
 	}
