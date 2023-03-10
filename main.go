@@ -51,7 +51,7 @@ func main() {
 
 func greeting() {
 	//screen.Clear()
-	version := "Version 0.1.0"
+	version := "Version 0.2.0"
 	fmt.Print(centerPaddedString(fmt.Sprintf("Welcome to Cara's Todo list application !!\n\n%v", version), '#', 100))
 }
 
