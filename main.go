@@ -2,11 +2,19 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
+
+	"golang.ngrok.com/ngrok"
+	"golang.ngrok.com/ngrok/config"
 )
 
 type Status = int
@@ -35,6 +43,12 @@ type TaskList struct {
 }
 
 func main() {
+	if err := godotenv.Load(".env"); err != nil {
+		log.Fatal("Error loading .env file")
+	} else if err := run(context.Background()); err != nil {
+		log.Fatal(err)
+	}
+
 	greeting()
 	taskBook = append(taskBook, *newTaskList("Caras First Todo List", "Cara"))
 	taskBook = append(taskBook, *newTaskList("Kaycees Hella Todo List", "Kaycee"))
@@ -47,6 +61,24 @@ func main() {
 	//	fmt.Println(carasTasks.tasks[i].format())
 	//}
 	mainMenu()
+}
+
+func run(ctx context.Context) error {
+	tun, err := ngrok.Listen(ctx,
+		config.HTTPEndpoint(),
+		ngrok.WithAuthtokenFromEnv(),
+	)
+	if err != nil {
+		return err
+	}
+
+	log.Println("tunnel created:", tun.URL())
+
+	return http.Serve(tun, http.HandlerFunc(handler))
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "<h1>Hello from ngrok-go.</h1>")
 }
 
 func greeting() {
