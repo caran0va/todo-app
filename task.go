@@ -2,18 +2,21 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 )
 
 func (t Task) format() string {
-	return fmt.Sprintf("%-20s %v\n%-20s %v\n%-20s %v\n", "Task: ", t.title, "Description:", t.descripion, "Creation Time:", t.creationTime)
+	return fmt.Sprintf("%-20s %v\n%-20s %v\n%-20s %v\n", "Task: ", t.Title, "Description:", t.Descripion, "Creation Time:", t.CreationTime)
 }
 
 // Create new taskList
 func newTaskList(title, owner string) *TaskList {
-	var tl TaskList
-	tl.title = title
-	tl.owner = owner
+	var tl = TaskList{
+		ID:    strconv.Itoa(len(taskBook) + 1),
+		Title: title,
+		Owner: owner,
+	}
 	return &tl
 }
 
@@ -21,11 +24,12 @@ func newTaskList(title, owner string) *TaskList {
 func (tl *TaskList) newTask(title, desc string) {
 
 	var t = Task{
-		title:        title,
-		descripion:   desc,
-		status:       PENDING,
-		creationTime: time.Now(),
+		ID:           strconv.Itoa(len(tl.Tasks) + 1),
+		Title:        title,
+		Descripion:   desc,
+		Status:       PENDING,
+		CreationTime: time.Now(),
 	}
 
-	tl.tasks = append(tl.tasks, t)
+	tl.Tasks = append(tl.Tasks, t)
 }
