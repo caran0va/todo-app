@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -28,6 +30,7 @@ const featureFlagKey = "read-only-mode"
 var readOnlyMode = false
 var lastFlag = !readOnlyMode
 var flagChan = make(chan bool)
+var client = new(ld.LDClient)
 
 // Status
 const (
@@ -54,6 +57,7 @@ type TaskList struct {
 
 func main() {
 
+	SetupCloseHandler()
 	//greeting()
 	taskBook = append(taskBook, *newTaskList("Caras First Todo List", "Cara"))
 	taskBook = append(taskBook, *newTaskList("Kaycees Hella Todo List", "Kaycee"))
@@ -83,7 +87,7 @@ func run(ctx context.Context) error {
 	if sdk_key == "" {
 		log.Fatal("SDK Key is empty. please edit .env to have LD_SDKKEY with sdk key")
 	}
-	client, _ := ld.MakeClient(sdk_key, 5*time.Second)
+	client, _ = ld.MakeClient(sdk_key, 5*time.Second)
 	if client.Initialized() {
 		log.Print("LaunchDarkly SDK successfully initialized!")
 	} else {
@@ -93,7 +97,7 @@ func run(ctx context.Context) error {
 	context := ldcontext.NewBuilder("example-user-key").
 		Name("Cara").
 		Build()
-	go checkFlag(client, context)
+	go checkFlag(context)
 
 	go listenToFlag()
 
@@ -142,8 +146,9 @@ func listenToFlag() {
 
 }
 
-func checkFlag(client *ld.LDClient, context ldcontext.Context) {
+func checkFlag(context ldcontext.Context) {
 	for {
+		time.Sleep(time.Second)
 		flagValue, err := client.BoolVariation(featureFlagKey, context, false)
 		if err != nil {
 			log.Printf("error: " + err.Error())
@@ -152,4 +157,24 @@ func checkFlag(client *ld.LDClient, context ldcontext.Context) {
 		//write new value to the channel
 		flagChan <- flagValue
 	}
+}
+
+func SetupCloseHandler() {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("\r- Ctrl+C pressed in Terminal")
+		onClose()
+		os.Exit(0)
+	}()
+}
+
+func onClose() {
+	// Here we ensure that the SDK shuts down cleanly and has a chance to deliver analytics
+	// events to LaunchDarkly before the program exits. If analytics events are not delivered,
+	// the context attributes and flag usage statistics will not appear on your dashboard. In
+	// a normal long-running application, the SDK would continue running and events would be
+	// delivered automatically in the background.
+	client.Close()
 }
