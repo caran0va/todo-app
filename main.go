@@ -23,7 +23,11 @@ var taskBook = []TaskList{}
 
 var sdk_key = ""
 
-const featureFlagKey = "sample-flag"
+const featureFlagKey = "read-only-mode"
+
+var readOnlyMode = false
+var lastFlag = !readOnlyMode
+var flagChan = make(chan bool)
 
 // Status
 const (
@@ -89,13 +93,9 @@ func run(ctx context.Context) error {
 	context := ldcontext.NewBuilder("example-user-key").
 		Name("Cara").
 		Build()
+	go checkFlag(client, context)
 
-	flagValue, err := client.BoolVariation(featureFlagKey, context, false)
-	if err != nil {
-		log.Printf("error: " + err.Error())
-	}
-
-	log.Printf("Feature flag '%s' is %t for this context", featureFlagKey, flagValue)
+	go listenToFlag()
 
 	router := mux.NewRouter()
 	//
@@ -110,12 +110,10 @@ func run(ctx context.Context) error {
 	router.HandleFunc("/tasklist/{listID}", getTaskList).Methods("GET")
 	router.HandleFunc("/tasklist", createTaskList).Methods("POST")
 
-	if !flagValue { // if the flag is false, then allow editing and deleting entries
-		router.HandleFunc("/tasklist/{listID}", updateTaskList).Methods("POST")
-		router.HandleFunc("/tasklist/{listID}", deleteTaskList).Methods("DELETE")
-		router.HandleFunc("/tasklist/{listID}/task/{taskID}", updateTask).Methods("POST")
-		router.HandleFunc("/tasklist/{listID}/task/{taskID}", deleteTask).Methods("DELETE")
-	}
+	router.HandleFunc("/tasklist/{listID}", updateTaskList).Methods("POST")
+	router.HandleFunc("/tasklist/{listID}", deleteTaskList).Methods("DELETE")
+	router.HandleFunc("/tasklist/{listID}/task/{taskID}", updateTask).Methods("POST")
+	router.HandleFunc("/tasklist/{listID}/task/{taskID}", deleteTask).Methods("DELETE")
 
 	//task CRUD
 	router.HandleFunc("/tasklist/{listID}/task", getTasks).Methods("GET")
@@ -128,5 +126,30 @@ func run(ctx context.Context) error {
 func greeting(writer http.ResponseWriter) {
 	//screen.Clear()
 	version := "Version 0.2.0-ngrok"
-	fmt.Fprintf(writer, centerPaddedString(fmt.Sprintf("Welcome to Cara's Todo list application !!\n\n%v", version), '#', 100))
+	fmt.Fprint(writer, centerPaddedString(fmt.Sprintf("Welcome to Cara's Todo list application !!\n\n%v", version), '#', 100))
+}
+
+func listenToFlag() {
+	for {
+		readOnlyMode = <-flagChan
+		if readOnlyMode != lastFlag {
+			//when the flag channel changes, let us know
+			log.Printf("Feature flag '%s' is %t for this context", featureFlagKey, readOnlyMode)
+			lastFlag = readOnlyMode
+		}
+
+	}
+
+}
+
+func checkFlag(client *ld.LDClient, context ldcontext.Context) {
+	for {
+		flagValue, err := client.BoolVariation(featureFlagKey, context, false)
+		if err != nil {
+			log.Printf("error: " + err.Error())
+		}
+
+		//write new value to the channel
+		flagChan <- flagValue
+	}
 }
