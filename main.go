@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 
+	"github.com/launchdarkly/go-sdk-common/v3/ldcontext"
+	ld "github.com/launchdarkly/go-server-sdk/v6"
 	"golang.ngrok.com/ngrok"
 	"golang.ngrok.com/ngrok/config"
 )
@@ -17,6 +20,10 @@ import (
 type Status = int
 
 var taskBook = []TaskList{}
+
+var sdk_key = ""
+
+const featureFlagKey = "sample-flag"
 
 // Status
 const (
@@ -47,17 +54,13 @@ func main() {
 	taskBook = append(taskBook, *newTaskList("Caras First Todo List", "Cara"))
 	taskBook = append(taskBook, *newTaskList("Kaycees Hella Todo List", "Kaycee"))
 	//time.Sleep(2 * time.Second)
-	taskBook[0].newTask("New Task #2", "This is something I should also do when I have time. Or rather, I should make time to do this lol")
+	taskBook[0].newTask("New Task", "This is something I should also do when I have time. Or rather, I should make time to do this lol")
 
 	if err := godotenv.Load(".env"); err != nil {
 		log.Fatal("Error loading .env file")
 	} else if err := run(context.Background()); err != nil {
 		log.Fatal(err)
 	}
-	//temporary loop to print tasks from the TaskList carasTasks
-	//TODO: implement list function
-	//for i, _ := range carasTasks.tasks {
-	//	fmt.Println(carasTasks.tasks[i].format())
 
 }
 
@@ -72,6 +75,28 @@ func run(ctx context.Context) error {
 
 	log.Println("tunnel created:", tun.URL())
 
+	sdk_key = os.Getenv("LD_SDKKEY")
+	if sdk_key == "" {
+		log.Fatal("SDK Key is empty. please edit .env to have LD_SDKKEY with sdk key")
+	}
+	client, _ := ld.MakeClient(sdk_key, 5*time.Second)
+	if client.Initialized() {
+		log.Print("LaunchDarkly SDK successfully initialized!")
+	} else {
+		log.Fatal("LaunchDarkly SDK failed to initalize...")
+	}
+
+	context := ldcontext.NewBuilder("example-user-key").
+		Name("Cara").
+		Build()
+
+	flagValue, err := client.BoolVariation(featureFlagKey, context, false)
+	if err != nil {
+		log.Printf("error: " + err.Error())
+	}
+
+	log.Printf("Feature flag '%s' is %t for this context", featureFlagKey, flagValue)
+
 	router := mux.NewRouter()
 	//
 	router.HandleFunc("/", func(writer http.ResponseWriter, _ *http.Request) {
@@ -80,17 +105,22 @@ func run(ctx context.Context) error {
 
 	})
 	//tasklist CRUD
+
 	router.HandleFunc("/tasklist", getTaskLists).Methods("GET")
 	router.HandleFunc("/tasklist/{listID}", getTaskList).Methods("GET")
 	router.HandleFunc("/tasklist", createTaskList).Methods("POST")
-	router.HandleFunc("/tasklist/{listID}", updateTaskList).Methods("POST")
-	router.HandleFunc("/tasklist/{listID}", deleteTaskList).Methods("DELETE")
+
+	if !flagValue { // if the flag is false, then allow editing and deleting entries
+		router.HandleFunc("/tasklist/{listID}", updateTaskList).Methods("POST")
+		router.HandleFunc("/tasklist/{listID}", deleteTaskList).Methods("DELETE")
+		router.HandleFunc("/tasklist/{listID}/task/{taskID}", updateTask).Methods("POST")
+		router.HandleFunc("/tasklist/{listID}/task/{taskID}", deleteTask).Methods("DELETE")
+	}
+
 	//task CRUD
 	router.HandleFunc("/tasklist/{listID}/task", getTasks).Methods("GET")
 	router.HandleFunc("/tasklist/{listID}/task/{taskID}", getTask).Methods("GET")
 	router.HandleFunc("/tasklist/{listID}/task", createTask).Methods("POST")
-	router.HandleFunc("/tasklist/{listID}/task/{taskID}", updateTask).Methods("POST")
-	router.HandleFunc("/tasklist/{listID}/task/{taskID}", deleteTask).Methods("DELETE")
 
 	return http.Serve(tun, http.HandlerFunc(router.ServeHTTP))
 }
